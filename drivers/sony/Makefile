@@ -1,0 +1,9 @@
+obj-y	+= battchg_ext/
+obj-y	+= battman_dbg/
+obj-y	+= camera_sync/
+obj-y	+= cirrus_cs35l45/
+obj-y	+= cirrus_cs40l25/
+obj-y	+= cirrus_cs40l2x_codec/
+obj-y	+= hdmi_detect/
+obj-y	+= ldo_vibrator/
+obj-y	+= slg51000_regulator/
