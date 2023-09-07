@@ -7,3 +7,4 @@ obj-y	+= cirrus_cs40l2x_codec/
 obj-y	+= hdmi_detect/
 obj-y	+= ldo_vibrator/
 obj-y	+= slg51000_regulator/
+obj-y	+= et6xx/
