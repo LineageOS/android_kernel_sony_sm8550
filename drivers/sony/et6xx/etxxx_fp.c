@@ -554,7 +554,6 @@ int do_egisfp_power_onoff(struct egisfp_dev_t *egis_dev, struct egisfp_ioctl_cmd
 				ret |= egisfp_vreg_setup(egis_dev, true, false);
 			if (egis_dev->pwr_by_gpio)
 			{
-				ret |= pinctrl_select_state(egis_dev->pinctrl, egis_dev->vdd_high);
 				ret |= pinctrl_select_state(egis_dev->pinctrl, egis_dev->vcc_high);
 				msleep(Rst_on_delay);
 				ret |= pinctrl_select_state(egis_dev->pinctrl, egis_dev->reset_high);
@@ -575,7 +574,6 @@ int do_egisfp_power_onoff(struct egisfp_dev_t *egis_dev, struct egisfp_ioctl_cmd
 				ret |= egisfp_vreg_setup(egis_dev, true, true);
 			if (egis_dev->pwr_by_gpio)
 			{
-				ret |= pinctrl_select_state(egis_dev->pinctrl, egis_dev->vdd_high);
 				ret |= pinctrl_select_state(egis_dev->pinctrl, egis_dev->vcc_high);
 				msleep(Rst_on_delay);
 				ret |= pinctrl_select_state(egis_dev->pinctrl, egis_dev->reset_high);
@@ -592,7 +590,6 @@ int do_egisfp_power_onoff(struct egisfp_dev_t *egis_dev, struct egisfp_ioctl_cmd
 		{
 			if (egis_dev->pwr_by_gpio)
 			{
-				ret |= pinctrl_select_state(egis_dev->pinctrl, egis_dev->vdd_low);
 				ret |= pinctrl_select_state(egis_dev->pinctrl, egis_dev->vcc_low);
 				msleep(Rst_off_delay);
 				ret |= pinctrl_select_state(egis_dev->pinctrl, egis_dev->reset_low);
@@ -615,7 +612,6 @@ int do_egisfp_power_onoff(struct egisfp_dev_t *egis_dev, struct egisfp_ioctl_cmd
 	if (egis_dev->pwr_by_gpio)
 	{
 		DEBUG_PRINT(" %s : power_pin value = %d \n", __func__, gpio_get_value(egis_dev->vcc_33v_Pin));
-		DEBUG_PRINT(" %s : power_pin value = %d \n", __func__, gpio_get_value(egis_dev->vdd_18v_Pin));
 	}
 	else
 		DEBUG_PRINT(" %s : regulator enable = %d output voltage %d \n", __func__, regulator_is_enabled(egis_dev->vcc), regulator_get_voltage(egis_dev->vcc));
@@ -890,7 +886,6 @@ int egisfp_platformfree(struct egisfp_dev_t *egis_dev)
 		if (egis_dev->pwr_by_gpio)
 		{
 			gpio_free(egis_dev->vcc_33v_Pin);
-			gpio_free(egis_dev->vdd_18v_Pin);
 		}
 		if (egis_dev->vcc)
 		{
@@ -932,14 +927,6 @@ int egisfp_platforminit(struct egisfp_dev_t *egis_dev)
 						goto egisfp_power_request_fail;
 					}
 					status = gpio_direction_output(egis_dev->vcc_33v_Pin, 0);
-
-					status = gpio_request(egis_dev->vdd_18v_Pin, "egis_dev-18v-gpio");
-					if (status < 0)
-					{
-						ERROR_PRINT(" %s : gpio_requset vdd_18v_Pin pin failed \n", __func__);
-						goto egisfp_power_request_fail;
-					}
-					status = gpio_direction_output(egis_dev->vdd_18v_Pin, 0);
 				}
 				else
 				{
@@ -1067,23 +1054,6 @@ int egisfp_platforminit(struct egisfp_dev_t *egis_dev)
 					}
 					if (pinctrl_select_state(egis_dev->pinctrl, egis_dev->vcc_low))
 						goto egisfp_pinctrl_fail;
-					
-					egis_dev->vdd_high = pinctrl_lookup_state(egis_dev->pinctrl, "egis_vdd_high");
-					if (IS_ERR(egis_dev->vdd_high))
-					{
-						status = PTR_ERR(egis_dev->vdd_high);
-						ERROR_PRINT(" %s : can't find fingerprint pinctrl egis_vdd_high \n", __func__);
-						goto egisfp_pinctrl_fail;
-					}
-					egis_dev->vdd_low = pinctrl_lookup_state(egis_dev->pinctrl, "egis_vdd_low");
-					if (IS_ERR(egis_dev->vdd_low))
-					{
-						status = PTR_ERR(egis_dev->vdd_low);
-						ERROR_PRINT(" %s : can't find fingerprint pinctrl egis_vdd_low \n", __func__);
-						goto egisfp_pinctrl_fail;
-					}
-					if (pinctrl_select_state(egis_dev->pinctrl, egis_dev->vdd_low))
-						goto egisfp_pinctrl_fail;
 				}
 			}
 
@@ -1172,14 +1142,6 @@ int egisfp_parse_dt(struct egisfp_dev_t *egis_dev)
 				if (!gpio_is_valid(egis_dev->vcc_33v_Pin))
 				{
 					ERROR_PRINT(" %s : vcc_33v_pin gpio is invalid \n", __func__);
-					return -ENODEV;
-				}
-
-				egis_dev->vdd_18v_Pin = of_get_named_gpio(node, "egistec,gpio_vdd_en", 0);
-				ERROR_PRINT(" %s : vdd_18v_pin gpio num is %d \n", __func__, egis_dev->vdd_18v_Pin);
-				if (!gpio_is_valid(egis_dev->vdd_18v_Pin))
-				{
-					ERROR_PRINT(" %s : vdd_18v_pin gpio is invalid \n", __func__);
 					return -ENODEV;
 				}
 			}

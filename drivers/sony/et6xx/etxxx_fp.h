@@ -165,7 +165,7 @@ struct egisfp_dev_t
 	u8 *buffer;
 	unsigned int irqPin;	  /* interrupt GPIO pin number */
 	unsigned int rstPin;	  /* Reset GPIO pin number */
-	unsigned int vdd_18v_Pin; /* Vdd GPIO pin number */
+	// unsigned int vdd_18v_Pin; /* Vdd GPIO pin number */
 	unsigned int vcc_33v_Pin; /* Vcc GPIO pin number */
 	struct input_dev *input_dev;
 	int navigation_enable;
@@ -198,8 +198,8 @@ struct egisfp_dev_t
 	struct pinctrl_state *vcc_high;
 	struct pinctrl_state *vcc_low;
 	struct pinctrl_state *irq_active;
-	struct pinctrl_state *vdd_high;
-	struct pinctrl_state *vdd_low;
+	// struct pinctrl_state *vdd_high;
+	// struct pinctrl_state *vdd_low;
 };
 
 int egisfp_platforminit(struct egisfp_dev_t *egis_dev);
