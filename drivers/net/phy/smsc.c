@@ -203,6 +203,16 @@ static int lan95xx_config_aneg_ext(struct phy_device *phydev)
  * The workaround is only applicable to poll mode. Energy Detect Power-Down may
  * not be used in interrupt mode lest link change detection becomes unreliable.
  */
+#define SOMC_GG_LAN9514
+#ifdef SOMC_GG_LAN9514
+static u32 lan95_ed_per = 3;
+static u32 lan95_edpd_per = 3;
+static u32 lan95_edpd_cnt;
+module_param(lan95_ed_per, uint, 0644);
+MODULE_PARM_DESC(lan95_ed_per, "LAN95xx ED period");
+module_param(lan95_edpd_per, uint, 0644);
+MODULE_PARM_DESC(lan95_edpd_per, "LAN95xx EDPD period");
+#endif
 static int lan87xx_read_status(struct phy_device *phydev)
 {
 	struct smsc_phy_priv *priv = phydev->priv;
@@ -218,6 +228,22 @@ static int lan87xx_read_status(struct phy_device *phydev)
 		if (rc < 0)
 			return rc;
 
+#ifdef SOMC_GG_LAN9514
+		/* Disable/Enable EDPD by edpd parameters */
+		if (lan95_edpd_cnt == 0) {
+			rc &= ~MII_LAN83C185_EDPWRDOWN;
+			rc = phy_write(phydev, MII_LAN83C185_CTRL_STATUS, rc);
+			if (rc < 0)
+				return rc;
+		} else if (lan95_edpd_cnt == lan95_ed_per) {
+			rc |= MII_LAN83C185_EDPWRDOWN;
+			rc = phy_write(phydev, MII_LAN83C185_CTRL_STATUS, rc);
+			if (rc < 0)
+				return rc;
+		}
+		if (++lan95_edpd_cnt >= (lan95_ed_per + lan95_edpd_per))
+			lan95_edpd_cnt = 0;
+#else
 		rc = phy_write(phydev, MII_LAN83C185_CTRL_STATUS,
 			       rc & ~MII_LAN83C185_EDPWRDOWN);
 		if (rc < 0)
@@ -242,6 +268,7 @@ static int lan87xx_read_status(struct phy_device *phydev)
 			       rc | MII_LAN83C185_EDPWRDOWN);
 		if (rc < 0)
 			return rc;
+#endif /* SOMC_GG_LAN9514 */
 	}
 
 	return err;
