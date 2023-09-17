@@ -36,9 +36,11 @@
 #include "sdhci-pltfm.h"
 #include "cqhci.h"
 #include "../core/core.h"
+#include "../core/card.h"
 #include <linux/qtee_shmbridge.h>
 #include <linux/crypto-qti-common.h>
 #include <linux/suspend.h>
+#include <trace/hooks/mmc.h>
 
 #if IS_ENABLED(CONFIG_MMC_SDHCI_MSM_SCALING)
 #include "sdhci-msm-scaling.h"
@@ -4985,6 +4987,36 @@ static void partial_init(void *unused, struct mmc_host *host, bool *partial_init
 
 }
 
+static void sdhci_msm_gpio_irqt(void *unused, struct mmc_host *host, bool *allow)
+{
+	host->android_oem_data1 = 0;
+}
+
+static void sdhci_msm_get_cd(void *unused, struct sdhci_host *host, bool *allow)
+{
+	if (host->mmc && host->mmc->android_oem_data1)
+		*allow = false;
+}
+
+static void sdhci_msm_remove_card(void *unused, struct mmc_card *card)
+{
+	if (mmc_card_sd(card)) {
+		pr_info("%s: Removing card\n", mmc_hostname(card->host));
+		mmc_card_set_removed(card);
+		card->host->android_oem_data1 = 1;
+		mmc_detect_change(card->host, msecs_to_jiffies(200));
+	}
+}
+
+static void sdhci_msm_disable_scr_cmd48_support(void *unused, struct mmc_card *card)
+{
+	if (card && mmc_card_sd(card) &&
+			(card->scr.cmds & SD_SCR_CMD48_SUPPORT)) {
+		pr_info("%s: disabling SD_SCR_CMD48_SUPPORT\n", mmc_hostname(card->host));
+		card->scr.cmds &= ~SD_SCR_CMD48_SUPPORT;
+	}
+}
+
 static int sdhci_msm_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
@@ -5326,6 +5358,9 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	/* Initialize sysfs entries */
 	sdhci_msm_init_sysfs_gating_qos(dev);
 
+	register_trace_android_vh_sd_update_bus_speed_mode(
+			sdhci_msm_disable_scr_cmd48_support, NULL);
+
 	if (of_property_read_bool(node, "supports-cqe"))
 		ret = sdhci_msm_cqe_add_host(host, pdev);
 	else
@@ -5362,6 +5397,34 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		register_trace_android_rvh_mmc_cache_card_properties(mmc_cache_card, NULL);
 		register_trace_android_rvh_partial_init(partial_init, NULL);
 	}
+
+	ret = register_trace_android_vh_mmc_blk_mq_rw_recovery(
+			sdhci_msm_remove_card, NULL);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to register vendor hook (%d)\n", ret);
+		goto exit_vh;
+	}
+
+	ret = register_trace_android_vh_sdhci_get_cd(
+			sdhci_msm_get_cd, NULL);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to register vendor hook (%d)\n", ret);
+		unregister_trace_android_vh_mmc_blk_mq_rw_recovery(
+                        sdhci_msm_remove_card, NULL);
+		goto exit_vh;
+	}
+
+	ret = register_trace_android_vh_mmc_gpio_cd_irqt(
+			sdhci_msm_gpio_irqt, NULL);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to register recovery hook (%d)\n", ret);
+		unregister_trace_android_vh_mmc_blk_mq_rw_recovery(
+                        sdhci_msm_remove_card, NULL);
+		unregister_trace_android_vh_sdhci_get_cd(
+                        sdhci_msm_get_cd, NULL);
+	}
+
+exit_vh:
 	return 0;
 
 pm_runtime_disable:
@@ -5414,6 +5477,13 @@ static int sdhci_msm_remove(struct platform_device *pdev)
 	dead = (readl_relaxed(host->ioaddr + SDHCI_INT_STATUS) ==
 		    0xffffffff);
 
+	unregister_trace_android_vh_mmc_blk_mq_rw_recovery(
+                        sdhci_msm_remove_card, NULL);
+	unregister_trace_android_vh_sdhci_get_cd(
+                        sdhci_msm_get_cd, NULL);
+	unregister_trace_android_vh_mmc_gpio_cd_irqt(
+                        sdhci_msm_gpio_irqt, NULL);
+
 	sdhci_remove_host(host, dead);
 
 	sdhci_msm_vreg_init(&pdev->dev, msm_host, false);
@@ -5446,6 +5516,9 @@ skip_removing_qos:
 		sdhci_msm_bus_get_and_set_vote(host, 0);
 		sdhci_msm_bus_unregister(&pdev->dev, msm_host);
 	}
+	unregister_trace_android_vh_sd_update_bus_speed_mode(
+			sdhci_msm_disable_scr_cmd48_support, NULL);
+
 	sdhci_pltfm_free(pdev);
 	return 0;
 }

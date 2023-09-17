@@ -94,6 +94,15 @@ static void qcom_q6v5_crash_handler_work(struct work_struct *work)
 	panic("Panicking, remoteproc %s crashed\n", q6v5->rproc->name);
 }
 
+void update_crash_reason(struct qcom_q6v5 *subsys,
+				char *smem_reason, int size)
+{
+	memcpy(subsys->crash_reason_buf, smem_reason,
+		min((size_t)size, sizeof(subsys->crash_reason_buf)));
+	subsys->data_ready = 1;
+}
+EXPORT_SYMBOL(update_crash_reason);
+
 static irqreturn_t q6v5_wdog_interrupt(int irq, void *data)
 {
 	struct qcom_q6v5 *q6v5 = data;
@@ -114,6 +123,8 @@ static irqreturn_t q6v5_wdog_interrupt(int irq, void *data)
 	} else {
 		dev_err(q6v5->dev, "watchdog without message\n");
 	}
+
+	update_crash_reason(q6v5, msg, len);
 
 	q6v5->running = false;
 	dev_err(q6v5->dev, "rproc recovery state: %s\n",
@@ -151,6 +162,8 @@ static irqreturn_t q6v5_fatal_interrupt(int irq, void *data)
 	} else {
 		dev_err(q6v5->dev, "fatal error without message\n");
 	}
+
+	update_crash_reason(q6v5, msg, len);
 
 	q6v5->running = false;
 	dev_err(q6v5->dev, "rproc recovery state: %s\n",
