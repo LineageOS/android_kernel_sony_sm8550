@@ -1196,7 +1196,7 @@ export MODULES_NSDEPS := $(extmod_prefix)modules.nsdeps
 PHONY += headers
 
 ext-mod-dir := ../sm8550-modules
-ext-mod-dirs := $(ext-mod-dir)/qcom/audio-kernel $(ext-mod-dir)/qcom/display-drivers $(ext-mod-dir)/qcom/video-kernel $(ext-mod-dir)/nxp/driver
+ext-mod-dirs := $(ext-mod-dir)/qcom/opensource/audio-kernel $(ext-mod-dir)/qcom/opensource/display-drivers $(ext-mod-dir)/qcom/opensource/video-kernel $(ext-mod-dir)/nxp/opensource/driver
 ext-mod-dirs := $(subst $(srctree)/,,$(ext-mod-dirs))
 
 #Default location for installed headers
