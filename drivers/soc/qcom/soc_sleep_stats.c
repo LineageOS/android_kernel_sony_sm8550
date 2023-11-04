@@ -91,13 +91,6 @@ static struct subsystem_data subsystems[] = {
 #endif // CONFIG_QCOM_SOC_SLEEP_STATS_ON_SYSFS
 #endif
 
-struct stats_config {
-	unsigned int offset_addr;
-	unsigned int ddr_offset_addr;
-	unsigned int num_records;
-	bool appended_stats_avail;
-};
-
 struct stats_entry {
 	uint32_t name;
 	uint32_t count;
@@ -119,11 +112,6 @@ struct sleep_stats {
 	u64 last_entered_at;
 	u64 last_exited_at;
 	u64 accumulated;
-};
-
-struct appended_stats {
-	u32 client_votes;
-	u32 reserved[3];
 };
 
 #if IS_ENABLED(CONFIG_MSM_QMP)
@@ -439,12 +427,10 @@ static void  print_ddr_stats(struct seq_file *s, int *count,
 
 	u32 cp_idx = 0;
 	u32 name;
-	u64 duration = 0;
+	u32 duration = 0;
 
-	if (accumulated_duration) {
-		duration = data->duration * 100;
-		do_div(duration, accumulated_duration);
-	}
+	if (accumulated_duration)
+		duration = (data->duration * 100) / accumulated_duration;
 
 	name = (data->name >> 8) & 0xFF;
 	if (name == 0x0) {
