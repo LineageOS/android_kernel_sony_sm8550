@@ -946,7 +946,6 @@ enum i2c_client_id {
 };
 
 struct i2c_driver_data {
-	int rc_index;
 	enum i2c_client_id client_id;
 };
 
@@ -1154,13 +1153,13 @@ static u32 msm_pcie_keep_resources_on;
 static struct workqueue_struct *mpcie_wq;
 
 /* debugfs values */
+#ifdef CONFIG_DEBUG_FS
 static u32 rc_sel = BIT(0);
 static u32 base_sel;
 static u32 wr_offset;
 static u32 wr_mask;
 static u32 wr_value;
 
-#ifdef CONFIG_DEBUG_FS
 static u32 corr_counter_limit = 5;
 #endif
 
@@ -1546,6 +1545,7 @@ static void pcie_tcsr_init(struct msm_pcie_dev_t *dev)
 	}
 }
 
+#ifdef CONFIG_DEBUG_FS
 static int msm_pcie_check_align(struct msm_pcie_dev_t *dev,
 						u32 offset)
 {
@@ -1558,6 +1558,7 @@ static int msm_pcie_check_align(struct msm_pcie_dev_t *dev,
 
 	return 0;
 }
+#endif
 
 static bool msm_pcie_dll_link_active(struct msm_pcie_dev_t *dev)
 {
@@ -1663,6 +1664,7 @@ static void pcie_dm_core_dump(struct msm_pcie_dev_t *dev)
 	}
 }
 
+#ifdef CONFIG_DEBUG_FS
 /**
  * msm_pcie_loopback - configure RC in loopback mode and test loopback mode
  * @dev: root commpex
@@ -2356,6 +2358,7 @@ int msm_pcie_debug_info(struct pci_dev *dev, u32 option, u32 base,
 	return ret;
 }
 EXPORT_SYMBOL(msm_pcie_debug_info);
+#endif
 
 #ifdef CONFIG_SYSFS
 static ssize_t link_check_max_count_show(struct device *dev,
@@ -8930,7 +8933,7 @@ static void msm_pcie_drv_connect_worker(struct work_struct *work)
 	int i;
 
 	/* rpmsg probe hasn't happened yet */
-	if (!pcie_drv->rpdev || !pcie_dev->enumerated)
+	if (!pcie_drv->rpdev)
 		return;
 
 	pcie_itr = pcie_dev;
@@ -8969,7 +8972,6 @@ static void msm_pcie_drv_connect_worker(struct work_struct *work)
 
 #ifdef CONFIG_I2C
 static const struct i2c_driver_data ntn3_data = {
-	.rc_index = 0,
 	.client_id = I2C_CLIENT_ID_NTN3,
 };
 
@@ -9002,9 +9004,14 @@ static int pcie_i2c_ctrl_probe(struct i2c_client *client,
 		}
 
 		data = (struct i2c_driver_data *)match->data;
-		rc_index = data->rc_index;
 		client_id = data->client_id;
 	}
+
+	of_property_read_u32(client->dev.of_node, "rc-index",
+			&rc_index);
+
+	dev_info(&client->dev, "%s: PCIe rc-index: 0x%X\n",
+			__func__, rc_index);
 
 	if (rc_index >= MAX_RC_NUM) {
 		dev_err(&client->dev, "invalid RC index %d\n", rc_index);

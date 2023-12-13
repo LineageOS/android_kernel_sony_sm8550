@@ -1408,6 +1408,17 @@ static const struct adsp_data khaje_adsp_resource = {
 	.ssctl_id = 0x14,
 };
 
+static const struct adsp_data qcs605_adsp_resource = {
+	.crash_reason_smem = 423,
+	.firmware_name = "adsp.mdt",
+	.pas_id = 1,
+	.minidump_id = 5,
+	.uses_elf64 = false,
+	.ssr_name = "lpass",
+	.sysmon_name = "adsp",
+	.ssctl_id = 0x14,
+};
+
 static const struct adsp_data msm8998_adsp_resource = {
 		.crash_reason_smem = 423,
 		.firmware_name = "adsp.mdt",
@@ -1542,6 +1553,17 @@ static const struct adsp_data khaje_cdsp_resource = {
 	.ssctl_id = 0x17,
 };
 
+static const struct adsp_data qcs605_cdsp_resource = {
+	.crash_reason_smem = 601,
+	.firmware_name = "cdsp.mdt",
+	.pas_id = 18,
+	.minidump_id = 7,
+	.uses_elf64 = false,
+	.ssr_name = "cdsp",
+	.sysmon_name = "cdsp",
+	.ssctl_id = 0x17,
+};
+
 static const struct adsp_data mpss_resource_init = {
 	.crash_reason_smem = 421,
 	.firmware_name = "modem.mdt",
@@ -1632,6 +1654,18 @@ static const struct adsp_data cinder_mpss_resource = {
 };
 
 static const struct adsp_data khaje_mpss_resource = {
+	.crash_reason_smem = 421,
+	.firmware_name = "modem.mdt",
+	.pas_id = 4,
+	.free_after_auth_reset = true,
+	.minidump_id = 3,
+	.uses_elf64 = true,
+	.ssr_name = "mpss",
+	.sysmon_name = "modem",
+	.ssctl_id = 0x12,
+};
+
+static const struct adsp_data qcs605_mpss_resource = {
 	.crash_reason_smem = 421,
 	.firmware_name = "modem.mdt",
 	.pas_id = 4,
@@ -1874,6 +1908,7 @@ static const struct adsp_data lemans_adsp_resource = {
 	.sysmon_name = "adsp",
 	.qmp_name = "adsp",
 	.ssctl_id = 0x14,
+	.minidump_id = 5,
 };
 
 static const struct adsp_data lemans_cdsp_resource = {
@@ -1887,6 +1922,7 @@ static const struct adsp_data lemans_cdsp_resource = {
 	.sysmon_name = "cdsp",
 	.qmp_name = "cdsp",
 	.ssctl_id = 0x17,
+	.minidump_id = 19,
 };
 
 static const struct adsp_data lemans_cdsp1_resource = {
@@ -1900,6 +1936,7 @@ static const struct adsp_data lemans_cdsp1_resource = {
 	.sysmon_name = "cdsp1",
 	.qmp_name = "cdsp1",
 	.ssctl_id = 0x20,
+	.minidump_id = 20,
 };
 
 static const struct adsp_data lemans_gpdsp0_resource = {
@@ -1913,6 +1950,7 @@ static const struct adsp_data lemans_gpdsp0_resource = {
 	.sysmon_name = "gpdsp0",
 	.qmp_name = "gpdsp0",
 	.ssctl_id = 0x21,
+	.minidump_id = 21,
 };
 
 static const struct adsp_data lemans_gpdsp1_resource = {
@@ -1926,6 +1964,7 @@ static const struct adsp_data lemans_gpdsp1_resource = {
 	.sysmon_name = "gpdsp1",
 	.qmp_name = "gpdsp1",
 	.ssctl_id = 0x22,
+	.minidump_id = 22,
 };
 
 static const struct adsp_data kona_adsp_resource = {
@@ -2006,7 +2045,7 @@ static const struct adsp_data qcs405_modem_resource = {
 	.pas_id = 6,
 	.has_aggre2_clk = false,
 	.auto_boot = false,
-	.ssr_name = "wcnss",
+	.ssr_name = "mpss",
 	.sysmon_name = "wlan",
 	.qmp_name = "wlan",
 	.ssctl_id = 0x12,
@@ -2111,6 +2150,9 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,trinket-modem-pas", .data = &trinket_modem_resource},
 	{ .compatible = "qcom,trinket-adsp-pas", .data = &trinket_adsp_resource},
 	{ .compatible = "qcom,trinket-cdsp-pas", .data = &trinket_cdsp_resource},
+	{ .compatible = "qcom,qcs605-adsp-pas", .data = &qcs605_adsp_resource},
+	{ .compatible = "qcom,qcs605-cdsp-pas", .data = &qcs605_cdsp_resource},
+	{ .compatible = "qcom,qcs605-modem-pas", .data = &qcs605_mpss_resource},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adsp_of_match);
