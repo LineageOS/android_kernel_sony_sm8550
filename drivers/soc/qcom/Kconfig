@@ -661,7 +661,7 @@ config QCOM_SOC_SLEEP_STATS
 
 config QCOM_SOC_SLEEP_STATS_ON_SYSFS
 	bool "Enable SoC sleep stats I/F on SYSFS"
-	depends on QCOM_SOC_SLEEP_STATS && QCOM_SMEM
+	depends on QCOM_SOC_SLEEP_STATS && QCOM_SMEM && DEBUG_FS
 	help
 	  Duplicate stats I/F virtual files to /sys/qcom_sleep_stats/
 	  derived from /sys/kernel/debug/qcom_sleep_stats/ .
