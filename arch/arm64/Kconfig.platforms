@@ -514,4 +514,16 @@ config ARCH_ZYNQMP
 	help
 	  This enables support for Xilinx ZynqMP Family
 
+config MACH_SONY_PDX234
+	bool "Sony Mobile PDX-234"
+	depends on ARCH_KALAMA
+	help
+	  This enables support for Sony Mobile PDX-234 Family
+
+config MACH_SONY_PDX237
+	bool "Sony Mobile PDX-237"
+	depends on ARCH_KALAMA
+	help
+	  This enables support for Sony Mobile PDX-237 Family
+
 endmenu
