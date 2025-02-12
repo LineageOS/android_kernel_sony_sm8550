@@ -13,6 +13,7 @@
 /* DRM extension event */
 #define DRM_EXT_EVENT_BEFORE_BLANK	0xF0
 #define DRM_EXT_EVENT_AFTER_BLANK		0xF1
+#define DRM_EXT_EVENT_AOD_CHANGE	0xF2
 
 /* DRM extension event data*/
 enum {
