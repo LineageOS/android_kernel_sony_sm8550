@@ -477,9 +477,8 @@ stmmac_probe_config_dt(struct platform_device *pdev, u8 *mac)
 	if (of_property_read_u32(np, "snps,phy-addr", &plat->phy_addr) == 0)
 		dev_warn(&pdev->dev, "snps,phy-addr property is deprecated\n");
 
-	/* To Configure PHY by using all device-tree supported properties */
 	if (!plat->mac2mac_en) {
-		rc = stmmac_dt_phy(plat, np, &pdev->dev);
+		rc = stmmac_mdio_setup(plat, np, &pdev->dev);
 		if (rc) {
 			ret = ERR_PTR(rc);
 			goto error_put_phy;
