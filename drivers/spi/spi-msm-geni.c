@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/clk.h>
@@ -615,8 +615,8 @@ static int setup_fifo_params(struct spi_device *spi_slv,
 	u32 demux_sel = 0;
 	u32 demux_output_inv = 0;
 	int ret = 0;
-	int idx;
-	int div;
+	int idx = 0;
+	int div = 0;
 	struct spi_geni_qcom_ctrl_data *delay_params = NULL;
 	u32 spi_delay_params = 0;
 
@@ -653,14 +653,17 @@ static int setup_fifo_params(struct spi_device *spi_slv,
 	}
 
 	demux_sel = spi_slv->chip_select;
-	mas->cur_speed_hz = spi_slv->max_speed_hz;
 	mas->cur_word_len = spi_slv->bits_per_word;
 
-	ret = get_spi_clk_cfg(mas->cur_speed_hz, mas, &idx, &div);
-	if (ret) {
-		dev_err(mas->dev, "Err setting clks ret(%d) for %d\n",
-							ret, mas->cur_speed_hz);
-		goto setup_fifo_params_exit;
+	if (mas->cur_speed_hz != spi_slv->max_speed_hz) {
+		ret = get_spi_clk_cfg(spi_slv->max_speed_hz, mas, &idx, &div);
+		if (ret) {
+			dev_err(mas->dev, "Err setting clks ret(%d) for %d\n",
+				ret, spi_slv->max_speed_hz);
+			goto setup_fifo_params_exit;
+		}
+
+		mas->cur_speed_hz = spi_slv->max_speed_hz;
 	}
 
 	spi_setup_word_len(mas, spi_slv->mode, spi_slv->bits_per_word);
@@ -1421,7 +1424,6 @@ static int spi_geni_unprepare_message(struct spi_master *spi_mas,
 	struct spi_geni_master *mas = spi_master_get_devdata(spi_mas);
 	int count = 0;
 
-	mas->cur_speed_hz = 0;
 	mas->cur_word_len = 0;
 	if (mas->cur_xfer_mode == GENI_GPI_DMA)
 		spi_geni_unmap_buf(mas, spi_msg);
@@ -3006,6 +3008,7 @@ static int spi_geni_suspend(struct device *dev)
 		if (!geni_mas->gsi_mode) {
 			geni_mas->setup = false;
 			geni_mas->slave_setup = false;
+			geni_mas->cur_speed_hz = 0;
 		}
 	}
 #endif

@@ -29,6 +29,7 @@
 #include <linux/if_arp.h>
 #include <linux/inet.h>
 #include <net/inet_common.h>
+#include <linux/clk-provider.h>
 #include "stmmac.h"
 #include "stmmac_platform.h"
 #include "dwmac-qcom-ethqos.h"
@@ -38,13 +39,14 @@
 #define PHY_LOOPBACK_1000 0x4140
 #define PHY_LOOPBACK_100 0x6100
 #define PHY_LOOPBACK_10 0x4100
+#define ETHQOS_MAX_FRAME_SIZE 2000
 
 static void ethqos_rgmii_io_macro_loopback(struct qcom_ethqos *ethqos,
 					   int mode);
 static int phy_digital_loopback_config(struct qcom_ethqos *ethqos, int speed, int config);
 static int qcom_ethqos_hib_restore(struct device *dev);
 static int qcom_ethqos_hib_freeze(struct device *dev);
-static char buf[2000];
+static char buf[ETHQOS_MAX_FRAME_SIZE];
 
 #define RGMII_IO_MACRO_DEBUG1		0x20
 #define EMAC_SYSTEM_LOW_POWER_DEBUG	0x28
@@ -1845,7 +1847,7 @@ static void qcom_ethqos_phy_suspend_clks(struct qcom_ethqos *ethqos)
 	if (priv->plat->pclk)
 		clk_disable_unprepare(priv->plat->pclk);
 
-	if (priv->plat->clk_ptp_ref)
+	if (priv->plat->clk_ptp_ref && __clk_is_enabled(priv->plat->clk_ptp_ref))
 		clk_disable_unprepare(priv->plat->clk_ptp_ref);
 
 	if (ethqos->rgmii_clk)

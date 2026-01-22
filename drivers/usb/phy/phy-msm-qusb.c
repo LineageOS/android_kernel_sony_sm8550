@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 #include <linux/module.h>
@@ -1343,13 +1343,13 @@ static void qusb_phy_port_state_work(struct work_struct *w)
 		if (status) {
 			qusb_phy_notify_charger(qphy,
 						POWER_SUPPLY_TYPE_USB_DCP);
+			qusb_phy_disable_phy(qphy);
 		} else {
 			qusb_phy_notify_charger(qphy,
 						POWER_SUPPLY_TYPE_USB_CDP);
 			qusb_phy_notify_extcon(qphy, EXTCON_USB, 1);
 		}
 
-		qusb_phy_disable_phy(qphy);
 		qphy->port_state = PORT_CHG_DET_DONE;
 	case PORT_CHG_DET_DONE:
 		if (!qphy->vbus_active) {

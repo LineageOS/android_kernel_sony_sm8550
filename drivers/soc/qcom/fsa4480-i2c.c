@@ -320,7 +320,7 @@ int fsa4480_reg_notifier(struct notifier_block *nb,
 		* to bypass the event filtering logic.
 		*/
 		atomic_set(&(fsa_priv->usbc_mode), TYPEC_ACCESSORY_NONE);
-		rc = fsa4480_usbc_analog_setup_switches(fsa_priv);
+		fsa4480_usbc_analog_setup_switches(fsa_priv);
 	} else if (atomic_read(&(fsa_priv->usbc_mode)) == TYPEC_ACCESSORY_AUDIO) {
 		dev_dbg(fsa_priv->dev, "%s: analog adapter already inserted\n",
 			__func__);

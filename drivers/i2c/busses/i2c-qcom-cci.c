@@ -131,6 +131,8 @@ struct cci {
 	const struct cci_data *data;
 	struct clk_bulk_data *clocks;
 	int nclocks;
+	struct regulator_bulk_data *supplies;
+	int num_supplies;
 	struct cci_master master[NUM_MASTERS];
 };
 
@@ -482,6 +484,9 @@ static int __maybe_unused cci_suspend_runtime(struct device *dev)
 	struct cci *cci = dev_get_drvdata(dev);
 
 	cci_disable_clocks(cci);
+
+	regulator_bulk_disable(cci->num_supplies, cci->supplies);
+
 	return 0;
 }
 
@@ -489,6 +494,12 @@ static int __maybe_unused cci_resume_runtime(struct device *dev)
 {
 	struct cci *cci = dev_get_drvdata(dev);
 	int ret;
+
+	ret = regulator_bulk_enable(cci->num_supplies, cci->supplies);
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable regulators\n");
+		return ret;
+	}
 
 	ret = cci_enable_clocks(cci);
 	if (ret)
@@ -610,9 +621,38 @@ static int cci_probe(struct platform_device *pdev)
 			 cci_clk_rate, cci->data->cci_clk_rate);
 	}
 
+	/* Regulators */
+	cci->num_supplies = of_property_count_strings(dev->of_node, "regulator-names");
+	if (cci->num_supplies) {
+		dev_dbg(dev, "Found regulators, count: %d\n", cci->num_supplies);
+		cci->supplies = devm_kmalloc_array(dev, cci->num_supplies,
+						   sizeof(*cci->supplies), GFP_KERNEL);
+		if (!cci->supplies)
+			return -ENOMEM;
+
+		for (i = 0; i < cci->num_supplies; i++) {
+			ret = of_property_read_string_index(dev->of_node, "regulator-names", i,
+							    &cci->supplies[i].supply);
+			if (ret)
+				return -ENODEV;
+
+			dev_dbg(dev, "Regulator[%d] name: %s\n", i, cci->supplies[i].supply);
+		}
+
+		ret = devm_regulator_bulk_get(dev, cci->num_supplies, cci->supplies);
+		if (ret)
+			return ret;
+	}
+
+	ret = regulator_bulk_enable(cci->num_supplies, cci->supplies);
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable regulators\n");
+		return ret;
+	}
+
 	ret = cci_enable_clocks(cci);
 	if (ret < 0)
-		return ret;
+		goto disable_regulators;
 
 	/* Interrupt */
 
@@ -670,6 +710,8 @@ error:
 	disable_irq(cci->irq);
 disable_clocks:
 	cci_disable_clocks(cci);
+disable_regulators:
+	regulator_bulk_disable(cci->num_supplies, cci->supplies);
 
 	return ret;
 }

@@ -11,6 +11,7 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fwnode.h>
@@ -50,10 +51,18 @@
 
 /* CSI2 HW configuration */
 #define OV9282_LINK_FREQ	400000000
-#define OV9282_NUM_DATA_LANES	2
+#define OV9282_MAX_NUM_DATA_LANES	2
 
 #define OV9282_REG_MIN		0x00
 #define OV9282_REG_MAX		0xfffff
+
+static const char * const ov9282_supply_names[] = {
+	"avdd",		/* Analog power */
+	"dovdd",	/* Digital I/O power */
+	"dvdd",		/* Digital core power */
+};
+
+#define OV9282_NUM_SUPPLIES ARRAY_SIZE(ov9282_supply_names)
 
 /**
  * struct ov9282_reg - ov9282 sensor register
@@ -117,6 +126,7 @@ struct ov9282_mode {
  * @exp_ctrl: Pointer to exposure control
  * @again_ctrl: Pointer to analog gain control
  * @vblank: Vertical blanking in lines
+ * @num_data_lanes: Number of configured data lanes
  * @cur_mode: Pointer to current selected sensor mode
  * @mutex: Mutex for serializing sensor controls
  * @streaming: Flag indicating streaming state
@@ -128,6 +138,7 @@ struct ov9282 {
 	struct media_pad pad;
 	struct gpio_desc *reset_gpio;
 	struct clk *inclk;
+	struct regulator_bulk_data supplies[OV9282_NUM_SUPPLIES];
 	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl *link_freq_ctrl;
 	struct v4l2_ctrl *pclk_ctrl;
@@ -138,6 +149,7 @@ struct ov9282 {
 		struct v4l2_ctrl *again_ctrl;
 	};
 	u32 vblank;
+	u32 num_data_lanes;
 	const struct ov9282_mode *cur_mode;
 	struct mutex mutex;
 	bool streaming;
@@ -248,6 +260,12 @@ static const struct ov9282_reg mode_1280x720_regs[] = {
 	{0x0101, 0x01},
 	{0x1000, 0x03},
 	{0x5a08, 0x84},
+};
+
+/* Data lane configuration registers */
+static const struct ov9282_reg single_lane_regs[] = {
+	{0x3039, 0x12},
+	{0x3662, 0x01},
 };
 
 /* Supported sensor mode configurations */
@@ -667,6 +685,14 @@ static int ov9282_start_streaming(struct ov9282 *ov9282)
 		return ret;
 	}
 
+	if (ov9282->num_data_lanes < OV9282_MAX_NUM_DATA_LANES) {
+		ret = ov9282_write_regs(ov9282, single_lane_regs, ARRAY_SIZE(single_lane_regs));
+		if (ret) {
+			dev_err(ov9282->dev, "fail to write data lane configuration\n");
+			return ret;
+		}
+	}
+
 	/* Setup handler will write actual exposure and gain */
 	ret =  __v4l2_ctrl_handler_setup(ov9282->sd.ctrl_handler);
 	if (ret) {
@@ -767,6 +793,18 @@ static int ov9282_detect(struct ov9282 *ov9282)
 	return 0;
 }
 
+static int ov9282_configure_regulators(struct ov9282 *ov9282)
+{
+	unsigned int i;
+
+	for (i = 0; i < OV9282_NUM_SUPPLIES; i++)
+		ov9282->supplies[i].supply = ov9282_supply_names[i];
+
+	return devm_regulator_bulk_get(ov9282->dev,
+				       OV9282_NUM_SUPPLIES,
+				       ov9282->supplies);
+}
+
 /**
  * ov9282_parse_hw_config() - Parse HW configuration and check if supported
  * @ov9282: pointer to ov9282 device
@@ -803,6 +841,12 @@ static int ov9282_parse_hw_config(struct ov9282 *ov9282)
 		return PTR_ERR(ov9282->inclk);
 	}
 
+	ret = ov9282_configure_regulators(ov9282);
+	if (ret) {
+		dev_err(ov9282->dev, "Failed to get power regulators\n");
+		return ret;
+	}
+
 	rate = clk_get_rate(ov9282->inclk);
 	if (rate != OV9282_INCLK_RATE) {
 		dev_err(ov9282->dev, "inclk frequency mismatch");
@@ -818,13 +862,14 @@ static int ov9282_parse_hw_config(struct ov9282 *ov9282)
 	if (ret)
 		return ret;
 
-	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV9282_NUM_DATA_LANES) {
+	if (bus_cfg.bus.mipi_csi2.num_data_lanes > OV9282_MAX_NUM_DATA_LANES) {
 		dev_err(ov9282->dev,
 			"number of CSI2 data lanes %d is not supported",
 			bus_cfg.bus.mipi_csi2.num_data_lanes);
 		ret = -EINVAL;
 		goto done_endpoint_free;
 	}
+	ov9282->num_data_lanes = bus_cfg.bus.mipi_csi2.num_data_lanes;
 
 	if (!bus_cfg.nr_of_link_frequencies) {
 		dev_err(ov9282->dev, "no link frequencies defined");
@@ -874,6 +919,12 @@ static int ov9282_power_on(struct device *dev)
 	struct ov9282 *ov9282 = to_ov9282(sd);
 	int ret;
 
+	ret = regulator_bulk_enable(OV9282_NUM_SUPPLIES, ov9282->supplies);
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable regulators\n");
+		return ret;
+	}
+
 	usleep_range(400, 600);
 
 	gpiod_set_value_cansleep(ov9282->reset_gpio, 1);
@@ -890,6 +941,8 @@ static int ov9282_power_on(struct device *dev)
 
 error_reset:
 	gpiod_set_value_cansleep(ov9282->reset_gpio, 0);
+
+	regulator_bulk_disable(OV9282_NUM_SUPPLIES, ov9282->supplies);
 
 	return ret;
 }
@@ -908,6 +961,8 @@ static int ov9282_power_off(struct device *dev)
 	gpiod_set_value_cansleep(ov9282->reset_gpio, 0);
 
 	clk_disable_unprepare(ov9282->inclk);
+
+	regulator_bulk_disable(OV9282_NUM_SUPPLIES, ov9282->supplies);
 
 	return 0;
 }
@@ -1017,6 +1072,7 @@ static int ov9282_probe(struct i2c_client *client)
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&ov9282->sd, client, &ov9282_subdev_ops);
 
+	ov9282->num_data_lanes = OV9282_MAX_NUM_DATA_LANES;
 	ret = ov9282_parse_hw_config(ov9282);
 	if (ret) {
 		dev_err(ov9282->dev, "HW configuration is not supported");
