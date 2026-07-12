@@ -190,6 +190,9 @@ DECLARE_HOOK(android_vh_mark_page_accessed,
 DECLARE_HOOK(android_vh_page_cache_forced_ra,
 	TP_PROTO(struct readahead_control *ractl, unsigned long req_count, bool *do_forced_ra),
 	TP_ARGS(ractl, req_count, do_forced_ra));
+DECLARE_HOOK(android_vh_page_cache_read,
+	TP_PROTO(struct inode *inode, pgoff_t index, unsigned long count),
+	TP_ARGS(inode, index, count));
 DECLARE_HOOK(android_vh_alloc_pages_reclaim_bypass,
 	TP_PROTO(gfp_t gfp_mask, int order, int alloc_flags,
 	int migratetype, struct page **page),

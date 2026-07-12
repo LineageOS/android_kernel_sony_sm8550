@@ -2968,7 +2968,7 @@ static int lock_page_maybe_drop_mmap(struct vm_fault *vmf, struct page *page,
 	} else
 		__lock_page(page);
 
-	trace_android_vh_lock_folio_drop_mmap_end(false, &tsk, vmf, page, *fpin);
+	trace_android_vh_lock_folio_drop_mmap_end(true, &tsk, vmf, page, *fpin);
 	return 1;
 }
 
@@ -3023,6 +3023,7 @@ static struct file *do_sync_mmap_readahead(struct vm_fault *vmf)
 	trace_android_vh_tune_mmap_readaround(ra->ra_pages, vmf->pgoff,
 			&ra->start, &ra->size, &ra->async_size);
 	ractl._index = ra->start;
+	trace_android_vh_page_cache_read(file->f_inode, ra->start, ra->size);
 	do_page_cache_ra(&ractl, ra->size, ra->async_size);
 	return fpin;
 }
@@ -3258,6 +3259,7 @@ page_not_uptodate:
 	 * and we need to check for errors.
 	 */
 	fpin = maybe_unlock_mmap_for_io(vmf, fpin);
+	trace_android_vh_page_cache_read(file->f_inode, offset, 1);
 	error = filemap_read_page(file, mapping, page);
 	if (fpin)
 		goto out_retry;
@@ -3549,6 +3551,8 @@ static struct page *do_read_cache_page(struct address_space *mapping,
 {
 	struct page *page;
 	int err;
+
+	trace_android_vh_page_cache_read(mapping->host, index, 1);
 repeat:
 	page = find_get_page(mapping, index);
 	if (!page) {
